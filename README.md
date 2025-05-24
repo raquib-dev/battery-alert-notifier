@@ -66,6 +66,16 @@ python main.py
 
 ---
 
+## 📸 Screenshots
+
+### 🔋 Low Battery Alert
+![Low Battery](screenshots/low-battery.png)
+
+### 🔌 Full Charge Alert
+![Battery Full](screenshots/battery-full.png)
+
+---
+
 ## ✅ Use Cases
 
 - Prevent overcharging laptop batteries

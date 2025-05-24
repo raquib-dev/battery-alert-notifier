@@ -1,86 +1,105 @@
-# python script showing battery details
 import os
+import sys
 import psutil
 import shutil
 import datetime
 from time import sleep
-import sys
-from plyer import notification
+from pathlib import Path
 from dotenv import load_dotenv
 
+# Load .env file
 load_dotenv()
 
-import tkinter
-app = tkinter.Tk()
+# Constants from environment variables
+LOG_DIR = Path("Log")
+MAXIMUM = int(os.getenv("maximum", 90))
+MINIMUM = int(os.getenv("minimum", 20))
+INTERVAL = int(os.getenv("interval", 15))
+LOG_LABEL = "Live"
 
-live = "Live"
-maximum = int(os.getenv('maximum',90))
-minimum = int(os.getenv('minimum',20))
-interval = int(os.getenv('interval',15))
+# Determine notification backend
+platform = sys.platform
+USE_WIN_TOAST = platform.startswith("win")
 
-def createFolder(directory,file_name,data):
+# Notification Setup
+if USE_WIN_TOAST:
+    from win10toast import ToastNotifier
+    toaster = ToastNotifier()
+else:
+    from plyer import notification
 
-    date_time=datetime.datetime.now()
-    curtime1=date_time.strftime("%d/%m/%Y %H:%M:%S")
-    curtime2=date_time.strftime("%d-%m-%Y")
-    directory = directory + str(curtime2) + '/'
-    # print(directory)
-    try:
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+def get_log_path() -> Path:
+    date_str = datetime.datetime.now().strftime("%d-%m-%Y")
+    daily_log_dir = LOG_DIR / date_str
+    daily_log_dir.mkdir(parents=True, exist_ok=True)
+    return daily_log_dir
 
-        # deleting old log files
-        old_date = (datetime.datetime.now() + datetime.timedelta(days=-5)).date()
-        file_list = os.listdir('Log')
-        for file in file_list:
+def cleanup_logs(retention_days: int = 5) -> None:
+    if not LOG_DIR.exists():
+        return
+    threshold_date = datetime.datetime.now().date() - datetime.timedelta(days=retention_days)
+    for entry in LOG_DIR.iterdir():
+        if entry.is_dir():
             try:
-                file_date = datetime.datetime.strptime(file, '%d-%m-%Y').date()
-            except:
-                shutil.rmtree('Log/'+file)
-            if file_date <= old_date:
-                shutil.rmtree('Log/'+file)
+                dir_date = datetime.datetime.strptime(entry.name, "%d-%m-%Y").date()
+                if dir_date <= threshold_date:
+                    shutil.rmtree(entry)
+            except ValueError:
+                shutil.rmtree(entry)
 
-        f= open(directory+str(file_name)+".txt","a+")
-        f.write(curtime1 +" "+ str(data) +"\r\n")
-        f.close()
-
-    except OSError:
-        print ('Error: Creating directory. ' +  directory)
-
-while True :
-
+def write_log(file_name: str, data: str) -> None:
+    log_path = get_log_path() / f"{file_name}.txt"
+    timestamp = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
     try:
-        
-        # returns a tuple
-        battery = psutil.sensors_battery()
-
-        # determine if application is a script file or frozen exe
-        if getattr(sys, 'frozen', False):
-            application_path = os.path.dirname(sys.executable)
-        elif __file__:
-            application_path = os.path.dirname(__file__)
-
-        icon_path = f'{application_path}/logo.ico'
-
-        if battery.percent >= maximum and battery.power_plugged == True :
-            
-            if notification.is_notification_active():
-                notification.close()
-
-            notification.notify(title='Battery Alert Notification',message=f'Battery full {battery.percent}% - Unplug your charger',app_name='AusNotifier',timeout=10,app_icon=icon_path)
-            createFolder('Log/',live,f"Your Battery is fully charged - {battery.percent}% . Please unplug you charger !!")
-
-        elif battery.percent <= minimum and battery.power_plugged == False :
-
-            notification.notify(title='Battery Alert Notification',message=f'Battery Low {battery.percent}% - Connect your charger',app_name='AusNotifier',timeout=10,app_icon=icon_path)
-            createFolder('Log/',live,f"Battery Low {battery.percent}% - Connect your charger")
-
-        elif battery.percent >= maximum :
-            createFolder('Log/',live,f"Your Battery Almost fully Charged . Battery Percentage is {battery.percent}% .")
-        else:
-            createFolder('Log/',live,f"Your Battery not yet charged above {maximum}% . Battery Percentage is {battery.percent}% .")
-
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"{timestamp} {data}\n")
     except Exception as e:
-        createFolder('Log/',live,f"Error - {e}")
-    
-    sleep(30)
+        print(f"Failed to write log: {e}")
+
+def get_icon_path() -> str:
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.path.dirname(sys.executable), "logo.ico")
+    return os.path.join(os.path.dirname(__file__), "logo.ico")
+
+def show_notification(title: str, message: str, icon_path: str) -> None:
+    if USE_WIN_TOAST:
+        toaster.show_toast(title, message, icon_path=icon_path, duration=10)
+    else:
+        notification.notify(
+            title=title,
+            message=message,
+            app_name="BatteryNotifier",
+            timeout=10,
+            app_icon=icon_path if os.path.exists(icon_path) else None
+        )
+
+def monitor_battery() -> None:
+    battery = psutil.sensors_battery()
+    if battery is None:
+        write_log(LOG_LABEL, "No battery information available.")
+        return
+
+    icon = get_icon_path()
+
+    if battery.percent >= MAXIMUM and battery.power_plugged:
+        show_notification("Battery Alert Notification", f"Battery full {battery.percent}% - Unplug your charger", icon)
+        write_log(LOG_LABEL, f"Battery full at {battery.percent}% - Unplug your charger.")
+    elif battery.percent <= MINIMUM and not battery.power_plugged:
+        show_notification("Battery Alert Notification", f"Battery Low {battery.percent}% - Connect your charger", icon)
+        write_log(LOG_LABEL, f"Battery low at {battery.percent}% - Connect your charger.")
+    elif battery.percent >= MAXIMUM:
+        write_log(LOG_LABEL, f"Battery almost fully charged: {battery.percent}%.")
+    else:
+        write_log(LOG_LABEL, f"Battery at {battery.percent}%. Not yet fully charged.")
+
+def main():
+    while True:
+        try:
+            monitor_battery()
+            cleanup_logs()
+        except Exception as e:
+            write_log(LOG_LABEL, f"Unhandled error: {e}")
+        sleep(INTERVAL)
+
+if __name__ == "__main__":
+    main()
