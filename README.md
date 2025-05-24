@@ -19,7 +19,7 @@ A simple yet effective desktop notifier tool that monitors your battery percenta
 
 ### 1. Clone the Repo
 ```bash
-git clone https://github.com/yourusername/battery-alert-notifier.git
+git clone https://github.com/raquib-dev/battery-alert-notifier.git
 cd battery-alert-notifier
 ```
 
