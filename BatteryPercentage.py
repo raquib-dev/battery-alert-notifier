@@ -97,7 +97,7 @@ def is_paused() -> bool:
             content = f.read().strip()
             if content == "charge":
                 battery = psutil.sensors_battery()
-                return battery and battery.power_plugged
+                return battery and not battery.power_plugged
             elif content.startswith("pause_until:"):
                 pause_until = float(content.split(":")[1])
                 return datetime.datetime.now().timestamp() < pause_until
@@ -110,7 +110,7 @@ def set_pause_for_5_minutes():
     with open(PAUSE_FILE, "w") as f:
         f.write(f"pause_until:{pause_until}")
 
-def set_pause_until_unplugged():
+def set_pause_until_plugged():
     with open(PAUSE_FILE, "w") as f:
         f.write("charge")
 
@@ -135,6 +135,7 @@ def monitor_battery() -> None:
     elif battery.percent >= MAXIMUM:
         write_log(LOG_LABEL, f"Battery almost fully charged: {battery.percent}%.")
     else:
+        clear_pause()
         write_log(LOG_LABEL, f"Battery at {battery.percent}%. Not yet fully charged.")
 
 def main():
@@ -159,9 +160,9 @@ def on_pause_5_minutes(icon, item):
     set_pause_for_5_minutes()
     show_notification("BatteryNotifier", "Paused for 5 minutes", get_icon_path())
 
-def on_pause_until_unplugged(icon, item):
-    set_pause_until_unplugged()
-    show_notification("BatteryNotifier", "Paused until unplugged", get_icon_path())
+def on_pause_until_plugged(icon, item):
+    set_pause_until_plugged()
+    show_notification("BatteryNotifier", "Paused until plugged", get_icon_path())
 
 def on_resume(icon, item):
     clear_pause()
@@ -174,7 +175,7 @@ def on_exit(icon, item):
 def run_tray():
     menu = Menu(
         MenuItem("Pause 5 Minutes", on_pause_5_minutes),
-        MenuItem("Pause Until Unplugged", on_pause_until_unplugged),
+        MenuItem("Pause Until plugged", on_pause_until_plugged),
         MenuItem("Resume Notifications", on_resume),
         MenuItem("Exit", on_exit)
     )
