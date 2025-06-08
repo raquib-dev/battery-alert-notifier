@@ -63,5 +63,6 @@ Icon?
 # Logs
 *.log
 
-# Custom folders you might want to ignore
+# Custom folders/files you might want to ignore
 Log/
+pause_flag.txt
