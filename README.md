@@ -8,36 +8,48 @@ A simple yet effective desktop notifier tool that monitors your battery percenta
 
 - 📢 Notification on full charge (above `maximum` %)
 - 📢 Notification on low battery (below `minimum` %)
+- 🛑 Pause alerts via system tray menu (5 minutes or until plugged)
 - 📝 Logs all events with timestamps in date-wise folders
 - ⚙️ Configurable thresholds and interval via `.env`
-- 💻 Works silently in the background
-- 🖼️ Tray notifications with custom icons
+- ⏱️ Enforced minimum interval of 30 seconds to avoid spamming
+- 🖼️ Custom tray icon with right-click menu
+- 💻 Works silently in the background with minimal resource usage
 
 ---
 
 ## 🧪 How to Use
 
 ### 1. Clone the Repo
+
 ```bash
 git clone https://github.com/raquib-dev/battery-alert-notifier.git
 cd battery-alert-notifier
 ```
 
 ### 2. Install Requirements
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 3. Create a `.env` file (optional)
+
 ```ini
+# Battery percentage at which to alert for full charge
 maximum=90
+
+# Battery percentage at which to alert for low battery
 minimum=20
+
+# Time interval (in seconds) to check battery status
+# Minimum allowed: 30 (auto-enforced)
 interval=15
 ```
 
 ### 4. Run the App
+
 ```bash
-python main.py
+python BatteryPercentage.py
 ```
 
 ---
@@ -45,10 +57,12 @@ python main.py
 ## 🛠 Tech Stack
 
 - `Python 3.10+`
-- `psutil` – For battery stats
-- `plyer` – For cross-platform notifications
-- `dotenv` – For environment variable config
-- `tkinter` – To register tray icon (on some systems)
+- `psutil` – For accessing battery statistics
+- `winotify` – For native Windows toast notifications
+- `pystray` – For creating a system tray icon and menu
+- `Pillow (PIL)` – For drawing the tray icon
+- `python-dotenv` – For reading environment variables from `.env` files
+
 
 ---
 
@@ -56,7 +70,7 @@ python main.py
 
 ```
 .
-├── main.py
+├── BatteryPercentage.py
 ├── logo.ico
 ├── requirements.txt
 ├── .env
@@ -74,6 +88,9 @@ python main.py
 ### 🔌 Full Charge Alert
 ![Battery Full](screenshots/battery-full.png)
 
+### 🧰 Tray Menu with Pause Options
+![Tray Menu](screenshots/tray-menu.png)
+
 ---
 
 ## ✅ Use Cases
@@ -81,6 +98,7 @@ python main.py
 - Prevent overcharging laptop batteries
 - Avoid sudden shutdowns due to low battery
 - Quiet background notifier with logs
+- Temporarily disable alerts when not needed
 
 ---
 
@@ -91,10 +109,21 @@ python main.py
 
 ---
 
+## ✨ New in This Version
+
+- Added system tray icon with right-click menu options
+- Menu options: Pause for 5 minutes, Pause until plugged, Resume alerts
+- Improved compatibility using `winotify` (native Windows notifications)
+- Prevented overlapping notifications during tray interaction
+- Enforced a minimum interval of 30 seconds
+- Added helpful inline comments to `.env` for clarity
+
+---
+
 ## 🚀 Tip
 
 Package it with `pyinstaller` to run as a background Windows/Linux/Tray App:
 
 ```bash
-pyinstaller --onefile --windowed main.py --icon=logo.ico
+pyinstaller --onefile --windowed BatteryPercentage.py --icon=logo.ico
 ```
